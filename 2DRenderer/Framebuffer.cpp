@@ -1,43 +1,44 @@
 #include "Framebuffer.h"
+#include "Image.h"
 //#define SLOPE
 #define DDA
 //#define BRESENHAM
 
 Framebuffer::Framebuffer(Renderer* renderer, int width, int height)
 {
-    this->width = width;
-    this->height = height;
+    colorBuffer.width = width; 
+    colorBuffer.height = height;
 
     texture = SDL_CreateTexture(renderer->renderer, SDL_PIXELFORMAT_ABGR8888, SDL_TEXTUREACCESS_STREAMING, width, height);
+    
+    colorBuffer.pitch = colorBuffer.width * sizeof(color_t); 
+    colorBuffer.data = new uint8_t[colorBuffer.pitch * colorBuffer.height];
 
-    pitch = width * sizeof(color_t);
-    buffer = new uint8_t[pitch * height];
 }
 
 Framebuffer::~Framebuffer()
 {
     SDL_DestroyTexture(texture);
-    delete[] buffer;
 }
 
 void Framebuffer::Update()
 {
-    SDL_UpdateTexture(texture, nullptr, buffer, pitch);
+    SDL_UpdateTexture(texture, nullptr, colorBuffer.data, colorBuffer.pitch);
 
 }
 
 void Framebuffer::Clear(const color_t& color)
 {
-    for (int i = 0; i < width * height; i++) {
-        ((color_t*)buffer)[i] = color;
+    for (int i = 0; i < colorBuffer.width * colorBuffer.height; i++) {
+        ((color_t*)colorBuffer.data)[i] = color;
     }
 }
 
 void Framebuffer::DrawPoint(int x, int y, const color_t& color)
 {
-    if (x < 0 || x >= width || y < 0 || y >= height) return;
+    if (x < 0 || x >= colorBuffer.width || y < 0 || y >= colorBuffer.height) return;
 
-    ((color_t*)buffer)[x + y * width] = color;
+    ((color_t*)colorBuffer.data)[x + y * colorBuffer.width] = color;
 }
 
 void Framebuffer::DrawRect(int x, int y, int rect_width, int rect_height, const color_t& color)
@@ -225,18 +226,18 @@ void Framebuffer::DrawCubicCurve(int x1, int y1, int x2, int y2, int x3, int y3,
         float t1 = i * dt;
         float t2 = (i + 1) * dt;
 
-        float a1 = pow((1.0f - t1), 3.0f);
-        float b1 = 3 * (pow((1.0f - t1), 2.0f)) * t1;
-        float c1 = 3 * (1 - t1) * pow(t1, 2);
-        float d1 = pow(t1, 3);
+        float a1 = (float)(pow((1.0f - t1), 3.0f));
+        float b1 = (float)(3 * (float)(pow((1.0f - t1), 2.0f)) * t1);
+        float c1 = (float)(3 * (1 - t1) * (float)pow(t1, 2));
+        float d1 = (float)(pow(t1, 3));
 
         int sx1 = (int)(a1 * x1 + b1 * x2 + c1 * x3 + d1 * x4);
         int sy1 = (int)(a1 * y1 + b1 * y2 + c1 * y3 + d1 * y4);
         
-        float a2 = pow((1.0f - t2), 3.0f);
-        float b2 = 3 * (pow((1.0f - t2), 2.0f)) * t2;
-        float c2 = 3 * (1 - t2) * pow(t2, 2);
-        float d2 = pow(t2, 3);
+        float a2 = (float)pow((1.0f - t2), 3.0f);
+        float b2 = (float)3 * (float)(pow((1.0f - t2), 2.0f)) * t2;
+        float c2 = (float)3 * (1 - t2) * (float)pow(t2, 2);
+        float d2 = (float)pow(t2, 3);
 
         int sx2 = (int)(a2 * x1 + b2 * x2 + c2 * x3 + d2 * x4);
         int sy2 = (int)(a2 * y1 + b2 * y2 + c2 * y3 + d2 * y4);
@@ -249,5 +250,21 @@ void Framebuffer::DrawCubicCurve(int x1, int y1, int x2, int y2, int x3, int y3,
 int Framebuffer::Lerp(int a, int b, float t)
 {
     return (int)(a + ((b-a) * t));
+}
+
+void Framebuffer::DrawImage(int x1, int y1, Image* image)
+{
+    for (int y = 0; y < image->colorBuffer.height; y++)
+    {
+        int sy = y + y1;
+        for (int x = 0; x < image->colorBuffer.width; x++)
+        {
+            int sx = x + x1;
+            if (sx > colorBuffer.width || sx < 0 || sy > colorBuffer.height || sy < 0) continue;
+
+            ((color_t*)colorBuffer.data)[sx + (sy * colorBuffer.width)] = ((color_t*)image->colorBuffer.data)[x + (y * image->colorBuffer.width)];
+        }
+    }
+
 }
 
