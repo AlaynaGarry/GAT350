@@ -2,6 +2,8 @@
 #include "Framebuffer.h"
 #include "Image.h"
 #include "PostProcess.h"
+#include "Tracer.h"
+#include "Scene.h"
 #include <iostream>
 #include <SDL.h>
 
@@ -15,6 +17,29 @@ int main(int, char**)
 	
 	std::unique_ptr<Framebuffer> frameBuffer = std::make_unique<Framebuffer>(renderer.get(), renderer->width, renderer->height);
 
+	// ray tracer
+	std::unique_ptr<Tracer> tracer = std::make_unique<Tracer>();
+
+	// scene
+	std::unique_ptr<Scene> scene = std::make_unique<Scene>();
+	//std::unique_ptr<Sphere> sphere = std::make_unique<Sphere>(glm::vec3{ 0, 0, -10 }, 3.0f);
+
+	frameBuffer->Clear({ 0,0,0,0 });
+	//scene->Add(std::move(std::make_unique<Plane>(glm::vec3{ 0, -5, 0 }, glm::vec3{ 0, 1, 0 })));
+	float focalLength = glm::length(glm::vec3{ 5, 5, 5 } - glm::vec3{ 0, 0, -10 });
+
+	std::unique_ptr<Camera> camera = std::make_unique<Camera>(glm::vec3{ 5, 5, 5 }, 
+		glm::vec3{ 0, 0, -10 }, glm::vec3{ 0, 1, 0 }, 90.0f, 
+		glm::ivec2{ frameBuffer->colorBuffer.width, 
+		frameBuffer->colorBuffer.height }, 1.0f, focalLength);
+
+	scene->Add(std::move(std::make_unique<Sphere>(glm::vec3{ 0, 0, -10 }, 3.0f, std::make_shared<Lambertian>(glm::vec3{ 1, 0, 0 }))));
+	scene->Add(std::move(std::make_unique<Sphere>(glm::vec3{ 3, 3, -8 }, 1.0f, std::make_shared<Metal>(glm::vec3{ 0, 0, 1 }, 0.0f))));
+	scene->Add(std::move(std::make_unique<Plane>(glm::vec3{ 0, -3, 0 }, glm::vec3{ 0, 1, 0 }, std::make_shared<Metal>(glm::vec3{ 0.5f, 0.5f, 0.5f }, 0.0f))));
+
+	tracer->Trace(frameBuffer->colorBuffer, scene.get(), camera.get());
+	frameBuffer->Update();
+
 	bool quit = false;
 	SDL_Event event;
 	while (!quit)
@@ -27,85 +52,7 @@ int main(int, char**)
 			break;
 		}
 
-		//frameBuffer->Clear({ 0, 0, 0, 0 });
-  //      for (int i = 0; i < 10; i++)
-  //      {
-  //          frameBuffer->DrawPoint(rand() % renderer->width, rand() % renderer->height, { 0, 255, 0, 0 });
-  //      }
-        for (int i = 0; i < 10; i++)
-        {
-            frameBuffer->DrawRect(rand() % renderer->width, rand() % renderer->height, 50, 50, { (uint8_t)((rand() % 2) * 255), (uint8_t)((rand() % 2) * 255), (uint8_t)((rand() % 2) * 255), (uint8_t)(rand() % 256) });
-        }
-  //      for (int i = 0; i < 10; i++)
-  //      {
-  //          frameBuffer->DrawLine(renderer->width >> 1, renderer->height >> 1, rand() % renderer->width, rand() % renderer->height, { 255, 255, 0, 0 });
-  //      }
-  //      for (int i = 0; i < 5; i++)
-  //      {
-  //          frameBuffer->DrawTriangle(renderer->width >> 1, renderer->height >> 1, rand() % renderer->width, rand() % renderer->height, rand() % renderer->width, rand() % renderer->height, { 255, 0, 255, 0 });
-  //      }
-  //      for (int i = 0; i < 20; i++)
-  //      {
-  //          frameBuffer->DrawCircle(renderer->width >> 1, renderer->height >> 1, 50, { 255, 255, 255, 0 });
-  //      }
-
-
-  //      for (int i = 0; i < 10; i++)
-  //      {
-  //          frameBuffer->DrawQuadraticCurve(
-  //              rand() % renderer->width, rand() % renderer->height,
-  //              rand() % renderer->width, rand() % renderer->height,
-  //              rand() % renderer->width, rand() % renderer->height, 30, { 255, 255, 0, 255 });
-  //      }
-  //      for (int i = 0; i < 10; i++)
-  //      {
-  //          frameBuffer->DrawCubicCurve(
-  //              rand() % renderer->width, rand() % renderer->height,
-  //              rand() % renderer->width, rand() % renderer->height,
-  //              rand() % renderer->width, rand() % renderer->height,
-  //              rand() % renderer->width, rand() % renderer->height,
-  //              30, { 0, 255, 255, 255 });
-  //      }
-
-  //      for (int i = 0; i < 20; i++)
-  //      {
-  //          frameBuffer->DrawCircle(rand() % renderer->width, rand() % renderer->height, 30, { 0, 255, 0, 0 });
-  //      }
-
-        std::unique_ptr<Image> image = std::make_unique<Image>();
-        image->Load("../Resources/flower.bmp", 10);
-        image->Flip();
-        frameBuffer->DrawImage(300, 50, image.get());
-
-		std::unique_ptr<Image> image1 = std::make_unique<Image>(*image.get());
-		PostProcess::BoxBlur(image1->colorBuffer);
-		frameBuffer->DrawImage(0, 300, image1.get());
-
-		std::unique_ptr<Image> image2 = std::make_unique<Image>(*image.get());
-		PostProcess::GaussianBlur(image2->colorBuffer);
-		frameBuffer->DrawImage(200, 300, image2.get());
-
-		std::unique_ptr<Image> image3= std::make_unique<Image>(*image.get());
-		PostProcess::Sharpen(image3->colorBuffer);
-		frameBuffer->DrawImage(400, 300, image3.get());
-
-		std::unique_ptr<Image> image4 = std::make_unique<Image>(*image.get());
-		PostProcess::Monochrome(image4->colorBuffer);
-		PostProcess::Edge(image4->colorBuffer, 0);
-		frameBuffer->DrawImage(600, 300, image4.get());
-
-        /*
-		PostProcess::Invert(frameBuffer->colorBuffer);
-        PostProcess::Monochrome(frameBuffer->colorBuffer);
-        PostProcess::Noise(frameBuffer->colorBuffer, 100);
-        PostProcess::Brightness(frameBuffer->colorBuffer, 100);
-        PostProcess::Brightness(frameBuffer->colorBuffer, -100);
-        PostProcess::ColorBalance(frameBuffer->colorBuffer, 0, 0, 100);
-        PostProcess::Threshold(frameBuffer->colorBuffer, 200);
-		*/
-        
-
-		frameBuffer->Update();
+		//code
 
 		renderer->CopyBuffer(frameBuffer.get());
 		renderer->Present();
