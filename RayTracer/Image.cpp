@@ -3,20 +3,25 @@
 #include <fstream>
 #include <iostream>
 
-Image::~Image(){}
+
+
+Image::Image(const std::string& filename, uint8_t alpha)
+{
+    Load(filename, alpha);
+}
 
 bool Image::Load(const std::string& filename, uint8_t alpha)
 {
     std::ifstream stream(filename, std::ios::binary);
-
-    uint8_t header[54];
-    stream.read((char*)header, 54);
 
     if (stream.fail()) 
     {
         std::cout << "Error: Cannot open file: " << filename << std::endl;
         return false;
     }
+
+    uint8_t header[54];
+    stream.read((char*)header, 54);
 
     uint16_t id = *((uint16_t*)(header));
     if (id != 'MB')
@@ -64,6 +69,8 @@ bool Image::Load(const std::string& filename, uint8_t alpha)
     }
 
     delete[] data;
+
+    return true;
 }
 
 void Image::Flip()
